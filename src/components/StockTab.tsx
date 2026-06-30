@@ -114,7 +114,7 @@ export default function StockTab({
       <div className={`flex flex-col ${isAdding ? 'lg:w-7/12' : 'w-full'} bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6 overflow-hidden h-full transition-all duration-300`}>
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div>
-            <h2 id="stock-heading" className="text-xl font-bold text-slate-800">Movimentação de Estoque</h2>
+            <h2 id="stock-heading" className="text-xl font-bold text-slate-800">Movimentações de Estoque</h2>
             <p className="text-sm text-slate-500">Histórico completo de entradas, saídas e ajustes</p>
           </div>
           {!isAdding && (

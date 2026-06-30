@@ -18,6 +18,7 @@ import { Client, Product, DeliveryRoute, StockMovement, MovementType, UserProfil
 import AuthScreen from './components/AuthScreen';
 import OnboardingScreen from './components/OnboardingScreen';
 import ProfileModal from './components/ProfileModal';
+import InstallPwaModal from './components/InstallPwaModal';
 
 // Tab components
 import DashboardTab from './components/DashboardTab';
@@ -211,11 +212,30 @@ export default function App() {
       sku = productData.name.substring(0, 3).toUpperCase() + '-' + Date.now().toString().slice(-4);
     }
 
-    await addDoc(collection(db, 'products'), {
+    const batch = writeBatch(db);
+    const prodRef = doc(collection(db, 'products'));
+    
+    // 1. Add Product
+    batch.set(prodRef, {
       ...productData,
       sku,
       createdAt: new Date().toISOString()
     });
+
+    // 2. If initial stock > 0, log movement
+    if (productData.stock > 0) {
+      const movRef = doc(collection(db, 'movements'));
+      batch.set(movRef, {
+        productId: prodRef.id,
+        productName: productData.name,
+        type: 'entry' as const,
+        quantity: productData.stock,
+        date: new Date().toISOString(),
+        observation: 'Estoque inicial cadastrado'
+      });
+    }
+
+    await batch.commit();
   };
 
   const handleUpdateProduct = async (id: string, productData: Partial<Product>) => {
@@ -372,7 +392,7 @@ export default function App() {
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'products', label: 'Produtos', icon: Package },
-    { id: 'stock', label: 'Estoque', icon: History },
+    { id: 'stock', label: 'Movimentações', icon: History },
     { id: 'deliveries', label: 'Rotas', icon: Truck },
   ] as const;
 
@@ -706,6 +726,7 @@ export default function App() {
           onUpdate={(updated) => setProfile(updated)}
         />
       )}
+      <InstallPwaModal />
     </div>
   );
 }

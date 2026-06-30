@@ -9,7 +9,7 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 // config loaded from firebase-applet-config.json
 const firebaseConfig = {
-  apiKey: "AIzaSyAstmXpjTtJuM1QHDVOLFcyweEHIFiD2ME",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
   authDomain: "controle-de-clientes-41079.firebaseapp.com",
   projectId: "controle-de-clientes-41079",
   storageBucket: "controle-de-clientes-41079.firebasestorage.app",
