@@ -5,8 +5,9 @@ import {
 } from 'lucide-react';
 import ClientFormModal from './ClientFormModal';
 import ConfirmModal from './ConfirmModal';
-import { auth, googleProvider, getAccessToken, setAccessToken } from '../firebase';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { auth } from '../firebase';
+// Removed unused import
+
 
 interface ClientsTabProps {
   clients: Client[];
@@ -43,66 +44,37 @@ export default function ClientsTab({
     setIsFormOpen(true);
   };
 
-  const handleImportContacts = async () => {
-    console.log("handleImportContacts triggered");
-    let token = getAccessToken();
-    console.log("Current Token:", token);
-    
-    if (!token) {
-      try {
-        console.log("Attempting to get token via signInWithPopup...");
-        const result = await signInWithPopup(auth, googleProvider);
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        token = credential?.accessToken || null;
-        console.log("New Token:", token);
-        if (token) {
-          setAccessToken(token);
-        } else {
-          throw new Error('Não foi possível obter o token de acesso.');
-        }
-      } catch (e: any) {
-        console.error("signInWithPopup error:", e);
-        alert(`Erro ao autenticar com Google: ${e.message}`);
+
+
+  const handleImportContactsFromDevice = async () => {
+    // @ts-ignore
+    if (!('contacts' in navigator && 'ContactsManager' in window)) {
+        alert('Seu navegador não suporta a importação direta de contatos.');
         return;
-      }
     }
-    
+
     try {
-      console.log("Fetching contacts...");
-      const response = await fetch('https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,phoneNumbers', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.status === 403) {
-        console.warn("Token might be missing permissions, clearing cache...");
-        setAccessToken(null);
-        alert('Permissão negada. Por favor, tente importar novamente para re-autenticar.');
-        return;
-      }
-      
-      const data = await response.json();
-      console.log("Contacts API response:", data);
-      
-      if (!data.connections || data.connections.length === 0) {
-        alert('Nenhum contato encontrado.');
-        return;
-      }
+        // @ts-ignore
+        const contacts = await navigator.contacts.select(['name', 'email', 'tel'], { multiple: true });
+        
+        if (contacts.length === 0) return;
 
-      const newClients = data.connections.map((person: any) => ({
-        name: person.names?.[0]?.displayName || 'Sem nome',
-        email: person.emailAddresses?.[0]?.value || '',
-        phone: person.phoneNumbers?.[0]?.value || '',
-        address: 'Endereço não importado',
-        coordinates: { lat: 0, lng: 0 }
-      }));
+        const newClients = contacts.map((contact: any) => ({
+            name: contact.name?.[0] || 'Sem nome',
+            email: contact.email?.[0] || '',
+            phone: contact.tel?.[0] || '',
+            address: 'Endereço não importado',
+            coordinates: { lat: 0, lng: 0 }
+        }));
 
-      for (const client of newClients) {
-        await onAddClient(client);
-      }
-      
-      alert(`${newClients.length} contatos importados com sucesso!`);
+        for (const client of newClients) {
+            await onAddClient(client);
+        }
+        
+        alert(`${newClients.length} contatos importados do celular com sucesso!`);
     } catch (e: any) {
-      console.error("Fetch contacts error:", e);
-      alert('Erro ao importar contatos.');
+        console.error("Error importing contacts:", e);
+        alert('Erro ao importar contatos do celular.');
     }
   };
 
@@ -135,11 +107,11 @@ export default function ClientsTab({
           </div>
           <div className="flex gap-2">
             <button
-              onClick={handleImportContacts}
+              onClick={handleImportContactsFromDevice}
               className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl shadow-sm transition-all duration-200 text-sm cursor-pointer"
             >
               <Contact className="w-4 h-4" />
-              <span>Importar de Contatos</span>
+              <span>Importar dos Contatos</span>
             </button>
             <button
               onClick={handleCreateNew}

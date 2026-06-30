@@ -57,6 +57,7 @@ export default function App() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [showDbHelp, setShowDbHelp] = useState(true);
   const [copiedRules, setCopiedRules] = useState(false);
+  const [notifiedProducts, setNotifiedProducts] = useState<Set<string>>(new Set());
 
   // Listen to Auth State
   useEffect(() => {
@@ -66,6 +67,32 @@ export default function App() {
     });
     return unsubAuth;
   }, []);
+
+  // Request notification permission once on mount
+  useEffect(() => {
+    if ('Notification' in window) {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Check for low stock and notify
+  useEffect(() => {
+    if (!user || products.length === 0) return;
+
+    const lowStock = products.filter(p => p.stock <= p.minStock && p.stock > 0);
+    
+    if (lowStock.length > 0 && Notification.permission === 'granted') {
+      lowStock.forEach(product => {
+        if (!notifiedProducts.has(product.id)) {
+          new Notification("Alerta de Estoque Baixo", {
+            body: `O produto "${product.name}" está com estoque baixo (${product.stock} un).`,
+            icon: '/favicon.ico'
+          });
+          setNotifiedProducts(prev => new Set(prev).add(product.id));
+        }
+      });
+    }
+  }, [products, user, notifiedProducts]);
 
   // Firestore listeners - ONLY run if user is logged in
   useEffect(() => {

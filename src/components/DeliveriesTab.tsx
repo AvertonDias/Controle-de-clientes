@@ -332,9 +332,11 @@ export default function DeliveriesTab({
     return Math.round((completed / total) * 100);
   };
 
-  const getGoogleMapsUrl = (route: DeliveryRoute) => {
-    if (!route || !route.startCoordinates) return '';
-    const origin = `${route.startCoordinates.lat},${route.startCoordinates.lng}`;
+  const getGoogleMapsUrl = (route: DeliveryRoute, originOverride?: { lat: number, lng: number }) => {
+    if (!route) return '';
+    const originCoords = originOverride || route.startCoordinates;
+    if (!originCoords) return '';
+    const origin = `${originCoords.lat},${originCoords.lng}`;
     
     const order = route.optimizedOrder && route.optimizedOrder.length > 0
       ? route.optimizedOrder
@@ -342,6 +344,7 @@ export default function DeliveriesTab({
 
     const stopsCoords = order.map(itemIdx => {
       const item = route.items[itemIdx];
+      if (!item || item.status !== 'pending') return null;
       const client = clients.find(c => c.id === item.clientId);
       if (client && client.coordinates) {
         return `${client.coordinates.lat},${client.coordinates.lng}`;
@@ -386,16 +389,36 @@ export default function DeliveriesTab({
               </div>
               <div className="flex gap-2">
                 {getGoogleMapsUrl(activeRoute) && (
-                  <a
-                    href={getGoogleMapsUrl(activeRoute)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (position) => {
+                            const url = getGoogleMapsUrl(activeRoute, {
+                              lat: position.coords.latitude,
+                              lng: position.coords.longitude
+                            });
+                            if (url) window.open(url, '_blank');
+                          },
+                          (error) => {
+                            console.error(error);
+                            // Fallback to route's original start if geolocation fails
+                            const url = getGoogleMapsUrl(activeRoute);
+                            if (url) window.open(url, '_blank');
+                          }
+                        );
+                      } else {
+                        // Fallback to route's original start if geolocation not supported
+                        const url = getGoogleMapsUrl(activeRoute);
+                        if (url) window.open(url, '_blank');
+                      }
+                    }}
                     className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1 cursor-pointer"
-                    title="Abrir rota completa otimizada no Google Maps"
+                    title="Abrir rota completa otimizada no Google Maps a partir da sua localização"
                   >
                     <Navigation className="w-3.5 h-3.5" />
                     <span>Abrir no GPS</span>
-                  </a>
+                  </button>
                 )}
                 <button
                   onClick={() => handleCompleteRoute(activeRoute)}
@@ -609,6 +632,31 @@ export default function DeliveriesTab({
                     className="px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-200"
                   >
                     Buscar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (position) => {
+                            setStartCoords({
+                              lat: position.coords.latitude,
+                              lng: position.coords.longitude
+                            });
+                            setStartAddress('Minha localização atual');
+                          },
+                          (error) => {
+                            console.error(error);
+                            alert('Não foi possível obter sua localização.');
+                          }
+                        );
+                      } else {
+                        alert('Geolocalização não suportada.');
+                      }
+                    }}
+                    className="px-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200"
+                  >
+                    Localização Atual
                   </button>
                 </div>
               </div>
@@ -898,15 +946,33 @@ export default function DeliveriesTab({
                           )}
 
                           {getGoogleMapsUrl(route) && (
-                            <a
-                              href={getGoogleMapsUrl(route)}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              onClick={() => {
+                                if (navigator.geolocation) {
+                                  navigator.geolocation.getCurrentPosition(
+                                    (position) => {
+                                      const url = getGoogleMapsUrl(route, {
+                                        lat: position.coords.latitude,
+                                        lng: position.coords.longitude
+                                      });
+                                      if (url) window.open(url, '_blank');
+                                    },
+                                    (error) => {
+                                      console.error(error);
+                                      const url = getGoogleMapsUrl(route);
+                                      if (url) window.open(url, '_blank');
+                                    }
+                                  );
+                                } else {
+                                  const url = getGoogleMapsUrl(route);
+                                  if (url) window.open(url, '_blank');
+                                }
+                              }}
                               className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              title="Abrir Rota Completa no Google Maps"
+                              title="Abrir Rota Completa no Google Maps a partir da sua localização"
                             >
                               <Navigation className="w-4 h-4" />
-                            </a>
+                            </button>
                           )}
 
                           <button
@@ -953,17 +1019,21 @@ export default function DeliveriesTab({
         <div className="flex-grow relative h-full">
           <MapComponent
             clients={clients}
-            activeRoute={activeRoute || (isCreating ? {
-              id: 'temp',
-              name: routeName || 'Nova Rota Temp',
-              status: 'pending',
-              date: '',
-              startAddress,
-              startCoordinates: startCoords,
-              items: selectedItems,
-              optimizedOrder: calculateOptimizedOrder(startCoords, selectedItems),
-              createdAt: ''
-            } : null)}
+            activeRoute={
+              activeRoute 
+                ? { ...activeRoute, items: activeRoute.items.filter(item => item && item.status === 'pending') }
+                : (isCreating ? {
+                    id: 'temp',
+                    name: routeName || 'Nova Rota Temp',
+                    status: 'pending',
+                    date: '',
+                    startAddress,
+                    startCoordinates: startCoords,
+                    items: selectedItems,
+                    optimizedOrder: calculateOptimizedOrder(startCoords, selectedItems),
+                    createdAt: ''
+                  } : null)
+            }
             heightClass="h-full"
           />
         </div>

@@ -198,24 +198,26 @@ export default function MapComponent({
       let routeBadge = '';
 
       if (activeRoute) {
-        const routeItemIdx = activeRoute.items.findIndex(item => item.clientId === client.id);
+        const routeItemIdx = activeRoute.items.findIndex(item => item && item.clientId === client.id);
         if (routeItemIdx !== -1) {
           const routeItem = activeRoute.items[routeItemIdx];
-          const displaySeq = activeRoute.optimizedOrder && activeRoute.optimizedOrder.length > 0
-            ? activeRoute.optimizedOrder.indexOf(routeItemIdx) + 1
-            : routeItemIdx + 1;
-
-          routeBadge = `<div class="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 bg-amber-500 text-white text-[10px] font-bold rounded-full border border-white shadow-sm">${displaySeq}</div>`;
-
-          if (routeItem.status === 'delivered') {
-            ringColor = 'bg-emerald-500 animate-pulse';
-            pinColor = 'bg-emerald-600';
-          } else if (routeItem.status === 'failed') {
-            ringColor = 'bg-rose-500';
-            pinColor = 'bg-rose-600';
-          } else {
-            ringColor = 'bg-amber-400';
-            pinColor = 'bg-amber-500';
+          if (routeItem) {
+            const displaySeq = activeRoute.optimizedOrder && activeRoute.optimizedOrder.length > 0
+              ? activeRoute.optimizedOrder.indexOf(routeItemIdx) + 1
+              : routeItemIdx + 1;
+  
+            routeBadge = `<div class="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 bg-amber-500 text-white text-[10px] font-bold rounded-full border border-white shadow-sm">${displaySeq}</div>`;
+  
+            if (routeItem.status === 'delivered') {
+              ringColor = 'bg-emerald-500 animate-pulse';
+              pinColor = 'bg-emerald-600';
+            } else if (routeItem.status === 'failed') {
+              ringColor = 'bg-rose-500';
+              pinColor = 'bg-rose-600';
+            } else {
+              ringColor = 'bg-amber-400';
+              pinColor = 'bg-amber-500';
+            }
           }
         }
       }
@@ -240,15 +242,15 @@ export default function MapComponent({
           <h3 class="font-bold text-sm text-slate-800">${client.name}</h3>
           <p class="text-xs text-slate-500 mt-0.5"><strong class="text-slate-600">Endereço:</strong> ${client.address}</p>
           <p class="text-xs text-slate-500 mt-0.5"><strong class="text-slate-600">Tel:</strong> ${client.phone}</p>
-          ${activeRoute && activeRoute.items.some(i => i.clientId === client.id) ? `
+          ${activeRoute && activeRoute.items.filter(i => i).some(i => i.clientId === client.id) ? `
             <div class="mt-2 pt-1 border-t border-slate-100 flex items-center justify-between">
               <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded ${
-                activeRoute.items.find(i => i.clientId === client.id)?.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' :
-                activeRoute.items.find(i => i.clientId === client.id)?.status === 'failed' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                activeRoute.items.filter(i => i).find(i => i.clientId === client.id)?.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' :
+                activeRoute.items.filter(i => i).find(i => i.clientId === client.id)?.status === 'failed' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
               }">
                 Entrega: ${
-                  activeRoute.items.find(i => i.clientId === client.id)?.status === 'delivered' ? 'Entregue' :
-                  activeRoute.items.find(i => i.clientId === client.id)?.status === 'failed' ? 'Falhou' : 'Pendente'
+                  activeRoute.items.filter(i => i).find(i => i.clientId === client.id)?.status === 'delivered' ? 'Entregue' :
+                  activeRoute.items.filter(i => i).find(i => i.clientId === client.id)?.status === 'failed' ? 'Falhou' : 'Pendente'
                 }
               </span>
             </div>
@@ -296,9 +298,11 @@ export default function MapComponent({
 
       order.forEach((index) => {
         const item = activeRoute.items[index];
-        const client = clients.find(c => c.id === item.clientId);
-        if (client) {
-          pointsInOrder.push([client.coordinates.lat, client.coordinates.lng]);
+        if (item) {
+          const client = clients.find(c => c.id === item.clientId);
+          if (client && client.coordinates) {
+            pointsInOrder.push([client.coordinates.lat, client.coordinates.lng]);
+          }
         }
       });
 
