@@ -8,7 +8,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider, setAccessToken } from '../firebase';
 import { 
-  Compass, Mail, Lock, User, AlertCircle, CheckCircle2, ArrowRight, Loader2
+  Compass, Mail, Lock, User, AlertCircle, CheckCircle2, ArrowRight, Loader2, Eye, EyeOff
 } from 'lucide-react';
 
 export default function AuthScreen() {
@@ -17,6 +17,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -183,13 +184,20 @@ export default function AuthScreen() {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-2xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all"
+                  className="w-full pl-12 pr-12 py-3.5 bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-2xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-400"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
           )}
@@ -200,13 +208,20 @@ export default function AuthScreen() {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-2xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all"
+                  className="w-full pl-12 pr-12 py-3.5 bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-2xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-400"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
           )}
