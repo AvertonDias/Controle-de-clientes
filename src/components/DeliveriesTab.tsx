@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useToast } from './Toast';
 import { Client, Product, DeliveryRoute, RouteItem, MovementType, UserProfile } from '../types';
 import { 
   Navigation, Calendar, MapPin, CheckCircle2, XCircle, ArrowRight, Play, AlertTriangle, Check, X, Plus, Trash2, Map, Truck, ChevronRight, HelpCircle
@@ -29,6 +30,7 @@ export default function DeliveriesTab({
   onFailStop,
   profile
 }: DeliveriesTabProps) {
+  const { showToast } = useToast();
   const [activeRoute, setActiveRoute] = useState<DeliveryRoute | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -83,7 +85,7 @@ export default function DeliveriesTab({
           });
           setStartAddress(data[0].display_name);
         } else {
-          alert('Endereço do depósito não encontrado.');
+          showToast('Endereço do depósito não encontrado.', 'error');
         }
       }
     } catch (e) {
@@ -136,13 +138,13 @@ export default function DeliveriesTab({
     if (!product) return;
 
     if (currentStopProductQty <= 0) {
-      alert('Selecione uma quantidade maior que zero.');
+      showToast('Selecione uma quantidade maior que zero.', 'error');
       return;
     }
 
     // Check stock
     if (product.stock < currentStopProductQty) {
-      alert(`Alerta: Estoque insuficiente! Estoque disponível: ${product.stock} un.`);
+      showToast(`Alerta: Estoque insuficiente! Estoque disponível: ${product.stock} un.`, 'error');
       return;
     }
 
@@ -166,17 +168,17 @@ export default function DeliveriesTab({
   // Add the stop with chosen products to the route being created
   const handleAddStopToRoute = () => {
     if (!currentClientStopId) {
-      alert('Selecione um cliente.');
+      showToast('Selecione um cliente.', 'error');
       return;
     }
     if (currentStopProducts.length === 0) {
-      alert('Por favor, adicione ao menos um produto para entregar a este cliente.');
+      showToast('Por favor, adicione ao menos um produto para entregar a este cliente.', 'error');
       return;
     }
 
     // Check if client is already in stops
     if (selectedItems.some(item => item.clientId === currentClientStopId)) {
-      alert('Este cliente já foi adicionado a esta rota.');
+      showToast('Este cliente já foi adicionado a esta rota.', 'error');
       return;
     }
 
@@ -244,7 +246,7 @@ export default function DeliveriesTab({
       await onUpdateRoute(route.id, { status: 'in_progress' });
       setActiveRoute({ ...route, status: 'in_progress' });
     } catch (e) {
-      alert('Erro ao iniciar entrega.');
+      showToast('Erro ao iniciar entrega.', 'error');
     }
   };
 
@@ -255,9 +257,9 @@ export default function DeliveriesTab({
         completedAt: new Date().toISOString()
       });
       setActiveRoute(null);
-      alert('Parabéns! Rota finalizada com sucesso.');
+      showToast('Parabéns! Rota finalizada com sucesso.', 'success');
     } catch (e) {
-      alert('Erro ao finalizar rota.');
+      showToast('Erro ao finalizar rota.', 'error');
     }
   };
 
@@ -267,7 +269,7 @@ export default function DeliveriesTab({
         await onUpdateRoute(routeToCancel.id, { status: 'cancelled' });
         setActiveRoute(null);
       } catch (e) {
-        alert('Erro ao cancelar rota.');
+        showToast('Erro ao cancelar rota.', 'error');
       }
     }
   };
@@ -288,7 +290,7 @@ export default function DeliveriesTab({
         items: updatedItems
       });
     } catch (e: any) {
-      alert(e.message || 'Erro ao registrar entrega.');
+      showToast(e.message || 'Erro ao registrar entrega.', 'error');
     }
   };
 
@@ -309,7 +311,7 @@ export default function DeliveriesTab({
       setFailingStopIdx(null);
       setFailReason('');
     } catch (e: any) {
-      alert(e.message || 'Erro ao registrar falha.');
+      showToast(e.message || 'Erro ao registrar falha.', 'error');
     }
   };
 
@@ -319,7 +321,7 @@ export default function DeliveriesTab({
         await onDeleteRoute(routeToDelete.id);
         if (activeRoute?.id === routeToDelete.id) setActiveRoute(null);
       } catch (e) {
-        alert('Erro ao excluir rota.');
+        showToast('Erro ao excluir rota.', 'error');
       }
     }
   };
@@ -647,11 +649,11 @@ export default function DeliveriesTab({
                           },
                           (error) => {
                             console.error(error);
-                            alert('Não foi possível obter sua localização.');
+                            showToast('Não foi possível obter sua localização.', 'error');
                           }
                         );
                       } else {
-                        alert('Geolocalização não suportada.');
+                        showToast('Geolocalização não suportada.', 'error');
                       }
                     }}
                     className="px-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200"
@@ -846,11 +848,11 @@ export default function DeliveriesTab({
               <button
                 onClick={() => {
                   if (clients.length === 0) {
-                    alert('Cadastre clientes primeiro para criar uma rota.');
+                    showToast('Cadastre clientes primeiro para criar uma rota.', 'error');
                     return;
                   }
                   if (products.length === 0) {
-                    alert('Cadastre produtos primeiro para criar entregas.');
+                    showToast('Cadastre produtos primeiro para criar entregas.', 'error');
                     return;
                   }
                   setIsCreating(true);

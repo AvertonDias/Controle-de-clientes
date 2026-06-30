@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useToast } from './Toast';
 import { Client } from '../types';
 import { 
   UserPlus, Search, Phone, Mail, MapPin, Trash2, Edit2, Contact
@@ -22,6 +23,7 @@ export default function ClientsTab({
   onUpdateClient,
   onDeleteClient
 }: ClientsTabProps) {
+  const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -49,7 +51,7 @@ export default function ClientsTab({
   const handleImportContactsFromDevice = async () => {
     // @ts-ignore
     if (!('contacts' in navigator && 'ContactsManager' in window)) {
-        alert('Seu navegador não suporta a importação direta de contatos.');
+        showToast('Seu navegador não suporta a importação direta de contatos.', 'error');
         return;
     }
 
@@ -71,10 +73,10 @@ export default function ClientsTab({
             await onAddClient(client);
         }
         
-        alert(`${newClients.length} contatos importados do celular com sucesso!`);
+        showToast(`${newClients.length} contatos importados do celular com sucesso!`, 'success');
     } catch (e: any) {
         console.error("Error importing contacts:", e);
-        alert('Erro ao importar contatos do celular.');
+        showToast('Erro ao importar contatos do celular.', 'error');
     }
   };
 
@@ -91,7 +93,7 @@ export default function ClientsTab({
       try {
         await onDeleteClient(clientToDelete.id);
       } catch (e: any) {
-        alert(e.message || 'Erro ao excluir cliente.');
+        showToast(e.message || 'Erro ao excluir cliente.', 'error');
       }
     }
   };

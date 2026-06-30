@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import { useToast } from './Toast';
 import { Product } from '../types';
 import { 
   Package, Search, Plus, Trash2, Edit2, AlertTriangle, ArrowUpDown, ArrowUpRight, ArrowDownRight, ShieldAlert, Check, X
@@ -21,6 +22,7 @@ export default function ProductsTab({
   onDeleteProduct,
   onQuickStockAdjust
 }: ProductsTabProps) {
+  const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'low' | 'out'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -83,18 +85,18 @@ export default function ProductsTab({
       try {
         await onDeleteProduct(productToDelete.id);
       } catch (e: any) {
-        alert(e.message || 'Erro ao excluir produto.');
+        showToast(e.message || 'Erro ao excluir produto.', 'error');
       }
     }
   };
 
   const handleQuickAdjustSubmit = async (productId: string, currentStock: number) => {
     if (adjustQuantity === 0) {
-      alert('Selecione uma quantidade maior ou menor que zero.');
+      showToast('Selecione uma quantidade maior ou menor que zero.', 'error');
       return;
     }
     if (currentStock + adjustQuantity < 0) {
-      alert('O estoque resultante não pode ser negativo.');
+      showToast('O estoque resultante não pode ser negativo.', 'error');
       return;
     }
 
@@ -104,7 +106,7 @@ export default function ProductsTab({
       setAdjustQuantity(0);
       setAdjustReason('Ajuste rápido');
     } catch (e: any) {
-      alert(e.message || 'Erro ao realizar ajuste rápido de estoque.');
+      showToast(e.message || 'Erro ao realizar ajuste rápido de estoque.', 'error');
     }
   };
 
