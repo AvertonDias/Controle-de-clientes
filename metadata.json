@@ -1,0 +1,6 @@
+{
+  "name": "Controle de Estoque e Rotas de Entrega",
+  "description": "Aplicativo PWA para gerenciamento de clientes, controle integrado de estoque e roteirização de entregas para celular e computador.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

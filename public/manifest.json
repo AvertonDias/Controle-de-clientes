@@ -1,0 +1,25 @@
+{
+  "short_name": "LogEstoque",
+  "name": "LogEstoque: Gestão Integrada de Estoque e Rotas",
+  "description": "Aplicativo PWA para gerenciamento integrado de catálogo de produtos, controle de estoque auditado e otimização de rotas de entrega de clientes.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity", "utilities"]
+}

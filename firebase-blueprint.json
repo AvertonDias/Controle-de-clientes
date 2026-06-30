@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "Client": {
+      "title": "Client",
+      "description": "A delivery client receiving orders",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the client" },
+        "email": { "type": "string", "description": "Email address" },
+        "phone": { "type": "string", "description": "Phone number" },
+        "address": { "type": "string", "description": "Physical shipping address" },
+        "coordinates": { "type": "object", "description": "Geographical coordinates" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of creation" }
+      },
+      "required": ["name", "email", "phone", "address", "coordinates", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A product in the inventory catalog",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the product" },
+        "description": { "type": "string", "description": "Product details" },
+        "sku": { "type": "string", "description": "Stock Keeping Unit code" },
+        "price": { "type": "number", "description": "Price per unit" },
+        "stock": { "type": "number", "description": "Current quantity in stock" },
+        "minStock": { "type": "number", "description": "Minimum alert stock level" },
+        "weight": { "type": "number", "description": "Weight of one unit in kg" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of creation" }
+      },
+      "required": ["name", "description", "sku", "price", "stock", "minStock", "weight", "createdAt"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "An audit log of stock addition, subtraction, or adjustment",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string", "description": "Reference to product ID" },
+        "productName": { "type": "string", "description": "Cached product name" },
+        "type": { "type": "string", "description": "Type of movement", "enum": ["entry", "exit", "return", "delivery", "adjustment"] },
+        "quantity": { "type": "number", "description": "Quantity moved" },
+        "date": { "type": "string", "description": "ISO timestamp of movement" },
+        "observation": { "type": "string", "description": "Reason or note" },
+        "routeId": { "type": "string", "description": "Optional reference to delivery route" }
+      },
+      "required": ["productId", "productName", "type", "quantity", "date", "observation"]
+    },
+    "DeliveryRoute": {
+      "title": "DeliveryRoute",
+      "description": "A route consisting of multiple client delivery stops",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Route name" },
+        "status": { "type": "string", "description": "Current status of the route", "enum": ["pending", "in_progress", "completed", "cancelled"] },
+        "date": { "type": "string", "description": "Scheduled delivery date" },
+        "startAddress": { "type": "string", "description": "Starting depot address" },
+        "startCoordinates": { "type": "object", "description": "Depot coordinates" },
+        "items": { "type": "array", "description": "List of stops and delivered items" },
+        "optimizedOrder": { "type": "array", "description": "Optimized stop visitation indices" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of creation" }
+      },
+      "required": ["name", "status", "date", "startAddress", "startCoordinates", "items", "optimizedOrder", "createdAt"]
+    }
+  },
+  "firestore": {
+    "clients": {
+      "schema": "Client",
+      "description": "Collections of delivery clients"
+    },
+    "products": {
+      "schema": "Product",
+      "description": "Inventory catalog"
+    },
+    "movements": {
+      "schema": "StockMovement",
+      "description": "Inventory transaction history logs"
+    },
+    "routes": {
+      "schema": "DeliveryRoute",
+      "description": "Delivery routes with client stops"
+    }
+  }
+}

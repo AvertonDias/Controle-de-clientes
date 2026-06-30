@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper: Checks if document ID is valid
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation for Client collection
+    function isValidClient(data) {
+      return data.name is string && data.name.size() <= 200
+        && data.email is string && data.email.size() <= 200
+        && data.phone is string && data.phone.size() <= 50
+        && data.address is string && data.address.size() <= 500
+        && data.coordinates is map
+        && data.coordinates.lat is number
+        && data.coordinates.lng is number
+        && data.createdAt is string && data.createdAt.size() <= 100;
+    }
+
+    // Validation for Product collection
+    function isValidProduct(data) {
+      return data.name is string && data.name.size() <= 200
+        && data.description is string && data.description.size() <= 1000
+        && data.sku is string && data.sku.size() <= 100
+        && data.price is number && data.price >= 0
+        && data.stock is number
+        && data.minStock is number
+        && data.weight is number && data.weight >= 0
+        && data.createdAt is string && data.createdAt.size() <= 100;
+    }
+
+    // Validation for StockMovement collection
+    function isValidMovement(data) {
+      return data.productId is string && data.productId.size() <= 100
+        && data.productName is string && data.productName.size() <= 200
+        && data.type is string && (data.type == 'entry' || data.type == 'exit' || data.type == 'return' || data.type == 'delivery' || data.type == 'adjustment')
+        && data.quantity is number && data.quantity >= 0
+        && data.date is string && data.date.size() <= 100
+        && data.observation is string && data.observation.size() <= 1000
+        && (!('routeId' in data) || (data.routeId is string && data.routeId.size() <= 100));
+    }
+
+    // Validation for DeliveryRoute collection
+    function isValidRoute(data) {
+      return data.name is string && data.name.size() <= 200
+        && data.status is string && (data.status == 'pending' || data.status == 'in_progress' || data.status == 'completed' || data.status == 'cancelled')
+        && data.date is string && data.date.size() <= 50
+        && data.startAddress is string && data.startAddress.size() <= 500
+        && data.startCoordinates is map
+        && data.startCoordinates.lat is number
+        && data.startCoordinates.lng is number
+        && data.items is list
+        && data.optimizedOrder is list
+        && data.createdAt is string && data.createdAt.size() <= 100;
+    }
+
+    match /clients/{clientId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && isValidClient(request.resource.data);
+      allow delete: if request.auth != null;
+    }
+
+    match /products/{productId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && isValidProduct(request.resource.data);
+      allow delete: if request.auth != null;
+    }
+
+    match /movements/{movementId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && isValidMovement(request.resource.data);
+      allow delete: if request.auth != null;
+    }
+
+    match /routes/{routeId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && isValidRoute(request.resource.data);
+      allow delete: if request.auth != null;
+    }
+
+    match /profiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
