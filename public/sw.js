@@ -46,7 +46,25 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    (async () => {
+      // Network-first strategy for navigation requests
+      if (event.request.mode === 'navigate') {
+        try {
+          const networkResponse = await fetch(event.request);
+          // Cache the latest version
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        } catch (error) {
+          // Fallback to cache if network fails
+          const cachedResponse = await caches.match(event.request);
+          if (cachedResponse) return cachedResponse;
+          return caches.match('/');
+        }
+      }
+
+      // Stale-while-revalidate for other requests
+      const cachedResponse = await caches.match(event.request);
       if (cachedResponse) {
         // Fetch fresh copy in background to update cache for next time
         fetch(event.request).then((networkResponse) => {
@@ -75,6 +93,6 @@ self.addEventListener('fetch', (event) => {
           return caches.match('/');
         }
       });
-    })
+    })()
   );
 });
