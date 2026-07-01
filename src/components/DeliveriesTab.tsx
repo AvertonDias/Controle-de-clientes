@@ -44,7 +44,7 @@ export default function DeliveriesTab({
 
   // Update starting point to match company profile if available
   useEffect(() => {
-    if (profile) {
+    if (profile && !isCreating) {
       if (profile.companyAddress) {
         setStartAddress(profile.companyAddress);
       }
@@ -64,36 +64,6 @@ export default function DeliveriesTab({
   // Failure modal state
   const [failingStopIdx, setFailingStopIdx] = useState<number | null>(null);
   const [failReason, setFailReason] = useState('');
-
-  // Geocoding start address
-  const [geocodingStart, setGeocodingStart] = useState(false);
-
-  const handleGeocodeStart = async () => {
-    if (!startAddress.trim()) return;
-    setGeocodingStart(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startAddress)}&limit=1`,
-        { headers: { 'Accept-Language': 'pt-BR' } }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.length > 0) {
-          setStartCoords({
-            lat: parseFloat(data[0].lat),
-            lng: parseFloat(data[0].lon)
-          });
-          setStartAddress(data[0].display_name);
-        } else {
-          showToast('Endereço do depósito não encontrado.', 'error');
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setGeocodingStart(false);
-    }
-  };
 
   // Helper TSP solver
   const calculateOptimizedOrder = (start: { lat: number; lng: number }, itemsList: RouteItem[]) => {
@@ -615,52 +585,37 @@ export default function DeliveriesTab({
 
               {/* Start point Depot Address */}
               <div>
-                <label htmlFor="route-depot-address" className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Endereço do Depósito/Partida <span className="text-rose-500">*</span>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Localização de Partida <span className="text-rose-500">*</span>
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    id="route-depot-address"
-                    type="text"
-                    placeholder="Ex: Depósito Central..."
-                    value={startAddress}
-                    onChange={(e) => setStartAddress(e.target.value)}
-                    className="flex-grow px-3 py-2 bg-slate-50 focus:bg-white text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-lg outline-none text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleGeocodeStart}
-                    disabled={geocodingStart}
-                    className="px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-200"
-                  >
-                    Buscar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(
-                          (position) => {
-                            setStartCoords({
-                              lat: position.coords.latitude,
-                              lng: position.coords.longitude
-                            });
-                            setStartAddress('Minha localização atual');
-                          },
-                          (error) => {
-                            console.error(error);
-                            showToast('Não foi possível obter sua localização.', 'error');
-                          }
-                        );
-                      } else {
-                        showToast('Geolocalização não suportada.', 'error');
-                      }
-                    }}
-                    className="px-2.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200"
-                  >
-                    Localização Atual
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                          setStartCoords({
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                          });
+                          setStartAddress('Minha localização atual');
+                        },
+                        (error) => {
+                          console.error(error);
+                          showToast('Não foi possível obter sua localização. Por favor, ative o GPS.', 'error');
+                        }
+                      );
+                    } else {
+                      showToast('Geolocalização não suportada.', 'error');
+                    }
+                  }}
+                  className="w-full px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200"
+                >
+                  Usar minha localização atual
+                </button>
+                {startAddress === 'Minha localização atual' && (
+                  <p className="text-[10px] text-emerald-600 mt-1 font-semibold">Localização capturada com sucesso!</p>
+                )}
               </div>
 
               {/* STOP BUILDER BOX (Choose client -> choose products -> add stop) */}

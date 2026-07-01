@@ -159,11 +159,11 @@ export default function ProfileModal({ profile, isOpen, onClose, onUpdate }: Pro
       setError('O nome da empresa é obrigatório.');
       return;
     }
-    if (cnpj.length < 18) {
+    if (cnpj && cnpj.length < 18) {
       setError('Informe um CNPJ completo.');
       return;
     }
-    if (!validateCNPJ(cnpj)) {
+    if (cnpj && !validateCNPJ(cnpj)) {
       setError('O CNPJ informado é inválido. Verifique os números digitados.');
       return;
     }

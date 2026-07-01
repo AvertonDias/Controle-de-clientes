@@ -153,11 +153,11 @@ export default function OnboardingScreen({ user, onComplete }: OnboardingScreenP
       setError('Por favor, informe o nome fantasia da empresa.');
       return;
     }
-    if (cnpj.length < 18) {
+    if (cnpj && cnpj.length < 18) {
       setError('Por favor, informe um CNPJ completo.');
       return;
     }
-    if (!validateCNPJ(cnpj)) {
+    if (cnpj && !validateCNPJ(cnpj)) {
       setError('O CNPJ informado é inválido. Verifique os números digitados.');
       return;
     }
