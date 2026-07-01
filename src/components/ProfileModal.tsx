@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import MapSelectionModal from './MapSelectionModal';
 import { validateCPF, validateCNPJ } from '../utils/validation';
+import { CustomSelect } from './CustomSelect';
 
 interface ProfileModalProps {
   profile: UserProfile;
@@ -26,6 +27,13 @@ export default function ProfileModal({ profile, isOpen, onClose, onUpdate }: Pro
   const [cnpj, setCnpj] = useState(profile.cnpj);
   const [companyAddress, setCompanyAddress] = useState(profile.companyAddress);
   const [segment, setSegment] = useState(profile.segment);
+
+  // PIX & Bank data states
+  const [pixKeyType, setPixKeyType] = useState<'cpf' | 'cnpj' | 'email' | 'phone' | 'random'>(profile.pixKeyType || 'cpf');
+  const [pixKey, setPixKey] = useState(profile.pixKey || '');
+  const [pixHolderName, setPixHolderName] = useState(profile.pixHolderName || '');
+  const [pixBankName, setPixBankName] = useState(profile.pixBankName || '');
+  const [pixBankCity, setPixBankCity] = useState(profile.pixBankCity || '');
 
   // Map & Geolocation states
   const [companyCoords, setCompanyCoords] = useState<{ lat: number; lng: number } | null>(profile.companyCoordinates || null);
@@ -51,6 +59,11 @@ export default function ProfileModal({ profile, isOpen, onClose, onUpdate }: Pro
       setCompanyAddress(profile.companyAddress);
       setSegment(profile.segment);
       setCompanyCoords(profile.companyCoordinates || null);
+      setPixKeyType(profile.pixKeyType || 'cpf');
+      setPixKey(profile.pixKey || '');
+      setPixHolderName(profile.pixHolderName || '');
+      setPixBankName(profile.pixBankName || '');
+      setPixBankCity(profile.pixBankCity || '');
     }
   }, [profile, isOpen]);
 
@@ -172,6 +185,27 @@ export default function ProfileModal({ profile, isOpen, onClose, onUpdate }: Pro
       return;
     }
 
+    // Bank / PIX details are optional now
+    const hasAnyPix = pixKey.trim() || pixHolderName.trim() || pixBankName.trim() || pixBankCity.trim();
+    if (hasAnyPix) {
+      if (!pixKey.trim()) {
+        setError('A chave PIX é obrigatória se você for preencher os dados bancários.');
+        return;
+      }
+      if (!pixHolderName.trim()) {
+        setError('O titular da conta PIX é obrigatório se você for preencher os dados bancários.');
+        return;
+      }
+      if (!pixBankName.trim()) {
+        setError('O nome do banco é obrigatório se você for preencher os dados bancários.');
+        return;
+      }
+      if (!pixBankCity.trim()) {
+        setError('A cidade do banco é obrigatória se você for preencher os dados bancários.');
+        return;
+      }
+    }
+
     setLoading(true);
 
     const updatedProfile: UserProfile = {
@@ -185,6 +219,11 @@ export default function ProfileModal({ profile, isOpen, onClose, onUpdate }: Pro
       companyAddress,
       companyCoordinates: companyCoords || undefined,
       segment,
+      pixKeyType,
+      pixKey,
+      pixHolderName,
+      pixBankName,
+      pixBankCity,
       updatedAt: new Date().toISOString()
     };
 
@@ -200,13 +239,19 @@ export default function ProfileModal({ profile, isOpen, onClose, onUpdate }: Pro
         companyAddress,
         companyCoordinates: companyCoords || null,
         segment,
+        pixKeyType,
+        pixKey,
+        pixHolderName,
+        pixBankName,
+        pixBankCity,
         updatedAt: new Date().toISOString()
       });
       onUpdate(updatedProfile);
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
-      }, 3000);
+        onClose();
+      }, 1500);
     } catch (err: any) {
       console.error("Error updating profile:", err);
       setError(err.message || 'Erro ao salvar os dados no Firestore.');
@@ -329,20 +374,19 @@ export default function ProfileModal({ profile, isOpen, onClose, onUpdate }: Pro
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Cargo / Função</label>
-                <div className="relative">
-                  <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl text-slate-800 text-sm focus:outline-none transition-all appearance-none cursor-pointer"
-                  >
-                    <option value="Administrador">Administrador / Diretor</option>
-                    <option value="Gerente de Estoque">Gerente de Estoque</option>
-                    <option value="Operador Logístico">Operador Logístico</option>
-                    <option value="Supervisor de Rotas">Supervisor de Rotas</option>
-                    <option value="Motorista / Entregador">Motorista / Entregador</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  value={role}
+                  onChange={(val) => setRole(val)}
+                  options={[
+                    { value: 'Administrador', label: 'Administrador / Diretor' },
+                    { value: 'Gerente de Estoque', label: 'Gerente de Estoque' },
+                    { value: 'Operador Logístico', label: 'Operador Logístico' },
+                    { value: 'Supervisor de Rotas', label: 'Supervisor de Rotas' },
+                    { value: 'Motorista / Entregador', label: 'Motorista / Entregador' }
+                  ]}
+                  placeholder="Selecione o cargo..."
+                  className="w-full text-sm"
+                />
               </div>
             </div>
           </div>
@@ -409,22 +453,21 @@ export default function ProfileModal({ profile, isOpen, onClose, onUpdate }: Pro
 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Segmento de Atuação</label>
-                  <div className="relative">
-                    <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
-                    <select
-                      value={segment}
-                      onChange={(e) => setSegment(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl text-slate-800 text-sm focus:outline-none transition-all appearance-none cursor-pointer"
-                    >
-                      <option value="Alimentos & Bebidas">Alimentos & Bebidas</option>
-                      <option value="Eletrônicos & Tecnologia">Eletrônicos & Tecnologia</option>
-                      <option value="Varejo / E-commerce">Varejo / E-commerce</option>
-                      <option value="Cosméticos & Higiene">Cosméticos & Higiene</option>
-                      <option value="Construção / Ferramentas">Construção / Ferramentas</option>
-                      <option value="Distribuidora Geral">Distribuidora Geral</option>
-                      <option value="Outros">Outros</option>
-                    </select>
-                  </div>
+                  <CustomSelect
+                    value={segment}
+                    onChange={(val) => setSegment(val)}
+                    options={[
+                      { value: 'Alimentos & Bebidas', label: 'Alimentos & Bebidas' },
+                      { value: 'Eletrônicos & Tecnologia', label: 'Eletrônicos & Tecnologia' },
+                      { value: 'Varejo / E-commerce', label: 'Varejo / E-commerce' },
+                      { value: 'Cosméticos & Higiene', label: 'Cosméticos & Higiene' },
+                      { value: 'Construção / Ferramentas', label: 'Construção / Ferramentas' },
+                      { value: 'Distribuidora Geral', label: 'Distribuidora Geral' },
+                      { value: 'Outros', label: 'Outros' }
+                    ]}
+                    placeholder="Selecione o segmento..."
+                    className="w-full text-sm"
+                  />
                 </div>
               </div>
 
@@ -485,6 +528,95 @@ export default function ProfileModal({ profile, isOpen, onClose, onUpdate }: Pro
                     </span>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+
+          <hr className="border-slate-100" />
+
+          {/* Section 3: Bank / PIX Data */}
+          <div>
+            <h3 className="text-slate-900 font-extrabold text-xs uppercase tracking-wider mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-3.5 bg-indigo-600 rounded-full"></span>
+              Dados Bancários para PIX
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Tipo de Chave PIX</label>
+                  <CustomSelect
+                    value={pixKeyType}
+                    onChange={(val) => {
+                      setPixKeyType(val as any);
+                      setPixKey('');
+                    }}
+                    options={[
+                      { value: 'cpf', label: 'CPF' },
+                      { value: 'cnpj', label: 'CNPJ' },
+                      { value: 'email', label: 'E-mail' },
+                      { value: 'phone', label: 'Telefone' },
+                      { value: 'random', label: 'Chave Aleatória' }
+                    ]}
+                    placeholder="Selecione o tipo..."
+                    className="w-full text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Chave PIX (Opcional)</label>
+                  <div className="relative">
+                    <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder={
+                        pixKeyType === 'cpf' ? '000.000.000-00' :
+                        pixKeyType === 'cnpj' ? '00.000.000/0000-00' :
+                        pixKeyType === 'phone' ? '(11) 99999-9999' :
+                        pixKeyType === 'email' ? 'email@exemplo.com' : 'Sua chave PIX'
+                      }
+                      value={pixKey}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (pixKeyType === 'cpf') val = formatCPF(val);
+                        else if (pixKeyType === 'cnpj') val = formatCNPJ(val);
+                        else if (pixKeyType === 'phone') val = formatPhone(val);
+                        setPixKey(val);
+                      }}
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Nome do Titular da Conta (Opcional)</label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Nome do titular"
+                    value={pixHolderName}
+                    onChange={(e) => setPixHolderName(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Cidade da Agência / Banco (Opcional)</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Ex: São Paulo"
+                      value={pixBankCity}
+                      onChange={(e) => setPixBankCity(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

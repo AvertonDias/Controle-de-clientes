@@ -10,6 +10,7 @@ interface MapComponentProps {
   isSelectingCoords?: boolean;
   selectedCoords?: { lat: number; lng: number } | null;
   heightClass?: string;
+  defaultCoordinates?: { lat: number; lng: number };
 }
 
 export default function MapComponent({
@@ -18,7 +19,8 @@ export default function MapComponent({
   onSelectCoordinates,
   isSelectingCoords = false,
   selectedCoords = null,
-  heightClass = "h-[400px] md:h-full"
+  heightClass = "h-[400px] md:h-full",
+  defaultCoordinates = { lat: -23.55052, lng: -46.633308 }
 }: MapComponentProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -33,14 +35,10 @@ export default function MapComponent({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Use a default location in Brazil (São Paulo) if no other coordinates exist
-    const defaultLat = -23.55052;
-    const defaultLng = -46.633308;
-
     const map = L.map(mapContainerRef.current, {
       zoomControl: true,
       fadeAnimation: true,
-    }).setView([defaultLat, defaultLng], 13);
+    }).setView([defaultCoordinates.lat, defaultCoordinates.lng], 13);
 
     // Modern clean map style from CartoDB (Positron) - perfect for professional business apps
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
@@ -76,7 +74,9 @@ export default function MapComponent({
             mapRef.current.setView([coords.lat, coords.lng], 14);
           }
         },
-        () => console.log('Location access denied or unavailable.')
+        () => {
+          console.log('Location access denied or unavailable on initial load.');
+        }
       );
     }
 
@@ -119,11 +119,19 @@ export default function MapComponent({
     if (userCoords && mapRef.current) {
       mapRef.current.setView([userCoords.lat, userCoords.lng], 16);
     } else if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
-        setUserCoords(coords);
-        mapRef.current?.setView([coords.lat, coords.lng], 16);
-      });
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+          setUserCoords(coords);
+          mapRef.current?.setView([coords.lat, coords.lng], 16);
+        },
+        (error) => {
+          console.warn('Error getting location:', error);
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+      );
+    } else {
+      console.warn('Geolocation not supported');
     }
   };
 
@@ -396,15 +404,13 @@ export default function MapComponent({
 
       {/* Map Control Overlay */}
       <div className={`absolute ${isSelectingCoords ? 'top-14' : 'top-3'} right-3 z-20 flex flex-col gap-2 no-select`}>
-        {userCoords && (
-          <button
-            onClick={centerOnUser}
-            className="flex items-center justify-center w-10 h-10 bg-white hover:bg-slate-50 text-slate-700 hover:text-sky-600 rounded-xl shadow-lg border border-slate-100 transition-all duration-200"
-            title="Minha Localização"
-          >
-            <Compass className="w-5 h-5 animate-pulse" />
-          </button>
-        )}
+        <button
+          onClick={centerOnUser}
+          className="flex items-center justify-center w-10 h-10 bg-white hover:bg-slate-50 text-slate-700 hover:text-sky-600 rounded-xl shadow-lg border border-slate-100 transition-all duration-200"
+          title="Minha Localização"
+        >
+          <Compass className="w-5 h-5" />
+        </button>
       </div>
 
       {loadingRoute && (

@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react';
 import { useToast } from './Toast';
 import { Client, Product, DeliveryRoute, RouteItem, MovementType, UserProfile } from '../types';
 import { 
-  Navigation, Calendar, MapPin, CheckCircle2, XCircle, ArrowRight, Play, AlertTriangle, Check, X, Plus, Trash2, Map, Truck, ChevronRight, HelpCircle
+  Navigation, Calendar, MapPin, CheckCircle2, XCircle, ArrowRight, Play, AlertTriangle, Check, X, Plus, Trash2, Map, Truck, ChevronRight, HelpCircle, Pencil, FileText, MessageSquare, Share2, Copy, QrCode
 } from 'lucide-react';
 import MapComponent from './MapComponent';
 import ConfirmModal from './ConfirmModal';
+import RouteEditModal from './RouteEditModal';
+import { CustomSelect } from './CustomSelect';
+import { generateReceiptPDF, shareReceiptWhatsApp } from '../utils/receiptGenerator';
+import { generatePixPayload } from '../utils/pix';
 
 interface DeliveriesTabProps {
   clients: Client[];
@@ -59,11 +63,16 @@ export default function DeliveriesTab({
   const [currentClientStopId, setCurrentClientStopId] = useState('');
   const [currentStopProducts, setCurrentStopProducts] = useState<{ productId: string; quantity: number }[]>([]);
   const [currentStopProductId, setCurrentStopProductId] = useState('');
-  const [currentStopProductQty, setCurrentStopProductQty] = useState<number>(1);
+  const [currentStopProductQty, setCurrentStopProductQty] = useState<string>('');
 
   // Failure modal state
   const [failingStopIdx, setFailingStopIdx] = useState<number | null>(null);
   const [failReason, setFailReason] = useState('');
+  const [editingRoute, setEditingRoute] = useState<DeliveryRoute | null>(null);
+
+  // PIX modal state
+  const [pixModalData, setPixModalData] = useState<{ clientName: string; amount: number; pixCode: string } | null>(null);
+  const [copiedPix, setCopiedPix] = useState(false);
 
   // Helper TSP solver
   const calculateOptimizedOrder = (start: { lat: number; lng: number }, itemsList: RouteItem[]) => {
@@ -107,13 +116,14 @@ export default function DeliveriesTab({
     const product = products.find(p => p.id === currentStopProductId);
     if (!product) return;
 
-    if (currentStopProductQty <= 0) {
+    const qty = parseInt(currentStopProductQty) || 0;
+    if (qty <= 0) {
       showToast('Selecione uma quantidade maior que zero.', 'error');
       return;
     }
 
     // Check stock
-    if (product.stock < currentStopProductQty) {
+    if (product.stock < qty) {
       showToast(`Alerta: Estoque insuficiente! Estoque disponível: ${product.stock} un.`, 'error');
       return;
     }
@@ -122,17 +132,17 @@ export default function DeliveriesTab({
     const existingIdx = currentStopProducts.findIndex(p => p.productId === currentStopProductId);
     if (existingIdx !== -1) {
       const newItems = [...currentStopProducts];
-      newItems[existingIdx].quantity += currentStopProductQty;
+      newItems[existingIdx].quantity += qty;
       setCurrentStopProducts(newItems);
     } else {
       setCurrentStopProducts([...currentStopProducts, {
         productId: currentStopProductId,
-        quantity: currentStopProductQty
+        quantity: qty
       }]);
     }
 
     setCurrentStopProductId('');
-    setCurrentStopProductQty(1);
+    setCurrentStopProductQty('');
   };
 
   // Add the stop with chosen products to the route being created
@@ -209,6 +219,22 @@ export default function DeliveriesTab({
     } catch (e: any) {
       setErrorMessage(e.message || 'Erro ao criar rota.');
     }
+  };
+
+  const handleTryCreateRoute = () => {
+    if (clients.length === 0) {
+      showToast('Cadastre clientes primeiro para criar uma rota.', 'error');
+      return;
+    }
+    if (products.length === 0) {
+      showToast('Cadastre produtos primeiro para criar entregas.', 'error');
+      return;
+    }
+
+    setIsCreating(true);
+    setRouteName('');
+    setSelectedItems([]);
+    setErrorMessage('');
   };
 
   const handleStartRouteExecution = async (route: DeliveryRoute) => {
@@ -527,9 +553,76 @@ export default function DeliveriesTab({
                               </button>
                             </>
                           ) : item.status === 'delivered' ? (
-                            <span className="flex items-center gap-1 text-emerald-600 font-bold text-xs bg-emerald-100 px-2 py-1 rounded">
-                              <CheckCircle2 className="w-4 h-4" /> Entregue
-                            </span>
+                            <div className="flex flex-col gap-1.5 items-stretch min-w-[100px]">
+                              <span className="flex items-center justify-center gap-1 text-emerald-600 font-bold text-xs bg-emerald-100 px-2 py-1 rounded-lg">
+                                <CheckCircle2 className="w-4 h-4" /> Entregue
+                              </span>
+
+                              <button
+                                onClick={() => {
+                                  const amount = item.items.reduce((acc, it) => {
+                                    const prod = products.find(p => p.id === it.productId);
+                                    return acc + (prod?.price || 0) * it.quantity;
+                                  }, 0);
+
+                                  if (!profile?.pixKey) {
+                                    showToast('Chave PIX não configurada! Vá no Perfil para preencher os Dados Bancários.', 'error');
+                                    return;
+                                  }
+
+                                  const pixCode = generatePixPayload({
+                                    pixKey: profile.pixKey,
+                                    holderName: profile.pixHolderName || profile.fullName,
+                                    bankCity: profile.pixBankCity || 'SAO PAULO',
+                                    amount
+                                  });
+
+                                  setPixModalData({
+                                    clientName: client.name,
+                                    amount,
+                                    pixCode
+                                  });
+                                  setCopiedPix(false);
+                                }}
+                                className="px-2 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] rounded-lg shadow-sm transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                title="Gerar QR Code PIX para cobrança"
+                              >
+                                <QrCode className="w-3.5 h-3.5 text-white" />
+                                <span>Cobrar PIX</span>
+                              </button>
+                              
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const res = await generateReceiptPDF(item, client, products, profile, { action: 'share' });
+                                    if (res.method === 'native') {
+                                      showToast('Compartilhando recibo...', 'success');
+                                    } else {
+                                      showToast('Recibo gerado e baixado com sucesso!', 'success');
+                                    }
+                                  } catch (error) {
+                                    showToast('Erro ao processar recibo.', 'error');
+                                  }
+                                }}
+                                className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg border border-slate-200 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                title="Compartilhar PDF do Recibo"
+                              >
+                                <Share2 className="w-3 h-3 text-indigo-600" />
+                                <span>Compartilhar</span>
+                              </button>
+                              
+                              <button
+                                onClick={() => {
+                                  shareReceiptWhatsApp(item, client, products, profile);
+                                  showToast('Redirecionando para o WhatsApp...', 'success');
+                                }}
+                                className="px-2 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] rounded-lg border border-emerald-200/50 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                title="Enviar Recibo por WhatsApp"
+                              >
+                                <MessageSquare className="w-3 h-3 text-emerald-600" />
+                                <span>WhatsApp</span>
+                              </button>
+                            </div>
                           ) : (
                             <span className="flex items-center gap-1 text-rose-600 font-bold text-xs bg-rose-100 px-2 py-1 rounded">
                               <XCircle className="w-4 h-4" /> Falhou
@@ -588,36 +681,11 @@ export default function DeliveriesTab({
               {/* Start point Depot Address */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Localização de Partida <span className="text-rose-500">*</span>
+                  Localização de Partida (Depósito)
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (navigator.geolocation) {
-                      navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                          setStartCoords({
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude
-                          });
-                          setStartAddress('Minha localização atual');
-                        },
-                        (error) => {
-                          console.error(error);
-                          showToast('Não foi possível obter sua localização. Por favor, ative o GPS.', 'error');
-                        }
-                      );
-                    } else {
-                      showToast('Geolocalização não suportada.', 'error');
-                    }
-                  }}
-                  className="w-full px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200"
-                >
-                  Usar minha localização atual
-                </button>
-                {startAddress === 'Minha localização atual' && (
-                  <p className="text-[10px] text-emerald-600 mt-1 font-semibold">Localização capturada com sucesso!</p>
-                )}
+                <div className="w-full px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium border border-slate-200">
+                  {startAddress}
+                </div>
               </div>
 
               {/* STOP BUILDER BOX (Choose client -> choose products -> add stop) */}
@@ -630,22 +698,22 @@ export default function DeliveriesTab({
                 {/* Select Client */}
                 <div>
                   <label htmlFor="stop-client" className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Selecione o Cliente</label>
-                  <select
-                    id="stop-client"
+                  <CustomSelect
                     value={currentClientStopId}
-                    onChange={(e) => {
-                      setCurrentClientStopId(e.target.value);
+                    onChange={(val) => {
+                      setCurrentClientStopId(val);
                       setCurrentStopProducts([]); // clear products
                     }}
-                    className="w-full px-3 py-2 bg-white text-slate-700 border border-slate-200 rounded-lg outline-none text-xs"
-                  >
-                    <option value="">Escolha um cliente...</option>
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id} disabled={selectedItems.some(i => i.clientId === c.id)}>
-                        {c.name} ({c.address.substring(0, 30)}...)
-                      </option>
-                    ))}
-                  </select>
+                    options={clients
+                      .filter(c => !selectedItems.some(i => i.clientId === c.id))
+                      .map(c => ({
+                        value: c.id,
+                        label: `${c.name} (${c.address.substring(0, 30)}...)`
+                      }))
+                    }
+                    placeholder="Escolha um cliente..."
+                    className="w-full text-xs"
+                  />
                 </div>
 
                 {currentClientStopId && (
@@ -656,29 +724,26 @@ export default function DeliveriesTab({
                     <div className="flex gap-2 flex-wrap items-end">
                       <div className="flex-grow min-w-[140px]">
                         <label htmlFor="stop-product" className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Produto</label>
-                        <select
-                          id="stop-product"
+                        <CustomSelect
                           value={currentStopProductId}
-                          onChange={(e) => setCurrentStopProductId(e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg outline-none text-xs"
-                        >
-                          <option value="">Selecione...</option>
-                          {products.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} (Estoque: {p.stock} un)
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(val) => setCurrentStopProductId(val)}
+                          options={products.map(p => ({
+                            value: p.id,
+                            label: `${p.name} (Estoque: ${p.stock} un)`
+                          }))}
+                          placeholder="Selecione..."
+                          className="w-full text-xs"
+                        />
                       </div>
 
                       <div className="w-18">
                         <label htmlFor="stop-qty" className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Qtd</label>
                         <input
                           id="stop-qty"
-                          type="number"
-                          min="1"
+                          type="text"
+                          inputMode="numeric"
                           value={currentStopProductQty}
-                          onChange={(e) => setCurrentStopProductQty(parseInt(e.target.value) || 1)}
+                          onChange={(e) => setCurrentStopProductQty(e.target.value.replace(/\D/g, ''))}
                           className="w-full px-2 py-1 bg-slate-50 text-slate-700 border border-slate-200 rounded-lg outline-none text-xs"
                         />
                       </div>
@@ -752,11 +817,24 @@ export default function DeliveriesTab({
                           <div className="min-w-0">
                             <p className="text-xs font-bold text-slate-800">{client?.name || 'Cliente'}</p>
                             <p className="text-[10px] text-slate-500 truncate">{client?.address}</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
+                            <div className="flex flex-wrap gap-2 mt-1">
                               {item.items.map((prod, pIdx) => (
-                                <span key={pIdx} className="text-[9px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-medium">
-                                  {prod.productName} ({prod.quantity})
-                                </span>
+                                <div key={pIdx} className="flex items-center bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-medium text-[10px] gap-1">
+                                  <span>{prod.productName}</span>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={prod.quantity}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/\D/g, '');
+                                      const newQty = parseInt(val) || 0;
+                                      const newItems = [...selectedItems];
+                                      newItems[idx].items[pIdx].quantity = newQty;
+                                      setSelectedItems(newItems);
+                                    }}
+                                    className="w-10 px-1 py-0 border border-slate-300 rounded text-center bg-white"
+                                  />
+                                </div>
                               ))}
                             </div>
                           </div>
@@ -803,20 +881,7 @@ export default function DeliveriesTab({
                 <p className="text-sm text-slate-500 font-medium">Calcule e acompanhe o fluxo logístico</p>
               </div>
               <button
-                onClick={() => {
-                  if (clients.length === 0) {
-                    showToast('Cadastre clientes primeiro para criar uma rota.', 'error');
-                    return;
-                  }
-                  if (products.length === 0) {
-                    showToast('Cadastre produtos primeiro para criar entregas.', 'error');
-                    return;
-                  }
-                  setIsCreating(true);
-                  setRouteName('');
-                  setSelectedItems([]);
-                  setErrorMessage('');
-                }}
+                onClick={handleTryCreateRoute}
                 className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl shadow-md shadow-indigo-100 transition-colors duration-200 text-sm"
               >
                 <Plus className="w-4 h-4" />
@@ -937,6 +1002,14 @@ export default function DeliveriesTab({
                           )}
 
                           <button
+                            onClick={() => setEditingRoute(route)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Editar Rota"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+
+                          <button
                             onClick={() => setRouteToDelete({ id: route.id, name: route.name })}
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                             title="Deletar Rota"
@@ -980,6 +1053,7 @@ export default function DeliveriesTab({
         <div className="flex-grow relative h-full">
           <MapComponent
             clients={clients}
+            defaultCoordinates={startCoords}
             activeRoute={
               activeRoute 
                 ? { ...activeRoute, items: activeRoute.items.filter(item => item && item.status === 'pending') }
@@ -1061,6 +1135,101 @@ export default function DeliveriesTab({
         cancelText="Cancelar"
         isDestructive={true}
       />
+
+      <RouteEditModal
+        isOpen={editingRoute !== null}
+        onClose={() => setEditingRoute(null)}
+        route={editingRoute}
+        clients={clients}
+        products={products}
+        onSave={onUpdateRoute}
+      />
+
+      {/* Modal para Gerar/Exibir QR Code PIX */}
+      {pixModalData && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md p-6 flex flex-col items-center animate-zoom-in text-center relative animate-in fade-in zoom-in-95 duration-150">
+            
+            {/* Header */}
+            <div className="w-full flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2 text-indigo-600 font-extrabold text-sm uppercase tracking-wider">
+                <QrCode className="w-5 h-5 text-indigo-600" />
+                <span>Cobrança via PIX</span>
+              </div>
+              <button 
+                onClick={() => setPixModalData(null)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Value description */}
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Valor do Pagamento</p>
+            <p className="text-3xl font-black text-slate-900 mt-1">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pixModalData.amount)}
+            </p>
+            <p className="text-xs text-slate-500 mt-1 font-medium">
+              Cliente: <span className="font-bold text-slate-700">{pixModalData.clientName}</span>
+            </p>
+
+            {/* QR Code Container */}
+            <div className="my-6 p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center shadow-inner relative overflow-hidden group">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(pixModalData.pixCode)}`}
+                alt="PIX QR Code"
+                className="w-48 h-48 select-none pointer-events-none"
+              />
+            </div>
+
+            <p className="text-[11px] text-slate-400 font-medium px-4 mb-5 leading-relaxed">
+              Aponte a câmera do aplicativo do seu banco para ler o QR Code acima ou use a chave Copia e Cola abaixo.
+            </p>
+
+            {/* Actions */}
+            <div className="w-full space-y-2.5">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(pixModalData.pixCode);
+                  setCopiedPix(true);
+                  showToast('Código PIX Copia e Cola copiado!', 'success');
+                  setTimeout(() => setCopiedPix(false), 2000);
+                }}
+                className={`w-full py-3 px-4 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+                  copiedPix 
+                    ? 'bg-emerald-600 text-white shadow-emerald-600/10' 
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/10'
+                }`}
+              >
+                {copiedPix ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Código Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copiar Chave Copia e Cola PIX</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  const message = `Olá! Segue o link de pagamento PIX de R$ ${pixModalData.amount.toFixed(2).replace('.', ',')} para a entrega efetuada:\n\n*Código PIX Copia e Cola:*\n\`${pixModalData.pixCode}\``;
+                  const encodedText = encodeURIComponent(message);
+                  window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
+                }}
+                className="w-full py-3 px-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <MessageSquare className="w-4 h-4 text-emerald-600" />
+                <span>Compartilhar via WhatsApp</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

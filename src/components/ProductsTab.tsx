@@ -312,10 +312,14 @@ export default function ProductsTab({
                               -
                             </button>
                             <input
-                              type="number"
+                              type="text"
                               inputMode="numeric"
                               value={adjustQuantity === 0 ? '' : adjustQuantity}
-                              onChange={(e) => setAdjustQuantity(Number(e.target.value))}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^-0-9]/g, '');
+                                const cleanVal = val.replace(/(?!^)-/g, '');
+                                setAdjustQuantity(Number(cleanVal) || 0);
+                              }}
                               placeholder="0"
                               className="w-14 text-center text-xs font-bold text-slate-700 outline-none"
                             />

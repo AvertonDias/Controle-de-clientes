@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import MapSelectionModal from './MapSelectionModal';
 import { validateCPF, validateCNPJ } from '../utils/validation';
+import { CustomSelect } from './CustomSelect';
 
 interface OnboardingScreenProps {
   user: User;
@@ -31,6 +32,13 @@ export default function OnboardingScreen({ user, onComplete }: OnboardingScreenP
   const [cnpj, setCnpj] = useState('');
   const [companyAddress, setCompanyAddress] = useState('');
   const [segment, setSegment] = useState('Alimentos & Bebidas');
+
+  // PIX & Bank data
+  const [pixKeyType, setPixKeyType] = useState<'cpf' | 'cnpj' | 'email' | 'phone' | 'random'>('cpf');
+  const [pixKey, setPixKey] = useState('');
+  const [pixHolderName, setPixHolderName] = useState('');
+  const [pixBankName, setPixBankName] = useState('');
+  const [pixBankCity, setPixBankCity] = useState('');
 
   // Live CPF and CNPJ validation checks
   const isCpfValid = cpf.length === 14 ? validateCPF(cpf) : null;
@@ -140,15 +148,8 @@ export default function OnboardingScreen({ user, onComplete }: OnboardingScreenP
     setStep(2);
   };
 
-  const handleBack = () => {
+  const handleNextStep2 = () => {
     setError(null);
-    setStep(1);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
     if (!companyName.trim()) {
       setError('Por favor, informe o nome fantasia da empresa.');
       return;
@@ -163,6 +164,41 @@ export default function OnboardingScreen({ user, onComplete }: OnboardingScreenP
     }
     if (!companyAddress.trim()) {
       setError('Por favor, informe o endereço corporativo.');
+      return;
+    }
+    if (!pixHolderName) {
+      setPixHolderName(fullName);
+    }
+    setStep(3);
+  };
+
+  const handleBack = () => {
+    setError(null);
+    if (step === 3) {
+      setStep(2);
+    } else if (step === 2) {
+      setStep(1);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!pixKey.trim()) {
+      setError('Por favor, informe a sua chave PIX.');
+      return;
+    }
+    if (!pixHolderName.trim()) {
+      setError('Por favor, informe o nome do titular da conta.');
+      return;
+    }
+    if (!pixBankName.trim()) {
+      setError('Por favor, informe o nome do banco.');
+      return;
+    }
+    if (!pixBankCity.trim()) {
+      setError('Por favor, informe a cidade do banco.');
       return;
     }
 
@@ -180,7 +216,12 @@ export default function OnboardingScreen({ user, onComplete }: OnboardingScreenP
       ...(companyCoords ? { companyCoordinates: companyCoords } : {}),
       segment,
       completedOnboarding: true,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      pixKeyType,
+      pixKey,
+      pixHolderName,
+      pixBankName,
+      pixBankCity
     };
 
     try {
@@ -213,28 +254,41 @@ export default function OnboardingScreen({ user, onComplete }: OnboardingScreenP
         </div>
 
         {/* Step Progress Indicators */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${
+        <div className="flex items-center justify-center gap-1.5 mb-8 overflow-x-auto py-1">
+          <div className="flex items-center gap-1.5">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
               step >= 1 ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-500'
             }`}>
               1
             </div>
-            <span className={`text-xs font-bold uppercase tracking-wider ${step >= 1 ? 'text-indigo-400' : 'text-slate-500'}`}>
-              Dados Pessoais
+            <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${step >= 1 ? 'text-indigo-400' : 'text-slate-500'}`}>
+              Pessoal
             </span>
           </div>
           
-          <div className="w-8 h-0.5 bg-slate-800"></div>
+          <div className="w-5 h-0.5 bg-slate-800 flex-shrink-0"></div>
 
-          <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${
-              step === 2 ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-500'
+          <div className="flex items-center gap-1.5">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
+              step >= 2 ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-500'
             }`}>
               2
             </div>
-            <span className={`text-xs font-bold uppercase tracking-wider ${step === 2 ? 'text-indigo-400' : 'text-slate-500'}`}>
-              Empresa/Negócio
+            <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${step >= 2 ? 'text-indigo-400' : 'text-slate-500'}`}>
+              Empresa
+            </span>
+          </div>
+
+          <div className="w-5 h-0.5 bg-slate-800 flex-shrink-0"></div>
+
+          <div className="flex items-center gap-1.5">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
+              step === 3 ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-500'
+            }`}>
+              3
+            </div>
+            <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${step === 3 ? 'text-indigo-400' : 'text-slate-500'}`}>
+              PIX / Banco
             </span>
           </div>
         </div>
@@ -328,20 +382,20 @@ export default function OnboardingScreen({ user, onComplete }: OnboardingScreenP
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Cargo / Função</label>
-                <div className="relative">
-                  <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-2xl text-white text-sm focus:outline-none transition-all appearance-none cursor-pointer"
-                  >
-                    <option value="Administrador" className="bg-slate-900">Administrador / Diretor</option>
-                    <option value="Gerente de Estoque" className="bg-slate-900">Gerente de Estoque</option>
-                    <option value="Operador Logístico" className="bg-slate-900">Operador Logístico</option>
-                    <option value="Supervisor de Rotas" className="bg-slate-900">Supervisor de Rotas</option>
-                    <option value="Motorista / Entregador" className="bg-slate-900">Motorista / Entregador</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  value={role}
+                  onChange={(val) => setRole(val)}
+                  options={[
+                    { value: 'Administrador', label: 'Administrador / Diretor' },
+                    { value: 'Gerente de Estoque', label: 'Gerente de Estoque' },
+                    { value: 'Operador Logístico', label: 'Operador Logístico' },
+                    { value: 'Supervisor de Rotas', label: 'Supervisor de Rotas' },
+                    { value: 'Motorista / Entregador', label: 'Motorista / Entregador' }
+                  ]}
+                  placeholder="Selecione o cargo..."
+                  theme="dark"
+                  className="w-full text-sm"
+                />
               </div>
 
               <button
@@ -353,10 +407,9 @@ export default function OnboardingScreen({ user, onComplete }: OnboardingScreenP
                 <ArrowRight className="w-4 h-4" />
               </button>
             </motion.div>
-          ) : (
-            <motion.form
+          ) : step === 2 ? (
+            <motion.div
               key="step2"
-              onSubmit={handleSubmit}
               initial={{ opacity: 0, x: 15 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -15 }}
@@ -418,22 +471,22 @@ export default function OnboardingScreen({ user, onComplete }: OnboardingScreenP
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Segmento de Atuação</label>
-                  <div className="relative">
-                    <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                    <select
-                      value={segment}
-                      onChange={(e) => setSegment(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-2xl text-white text-sm focus:outline-none transition-all appearance-none cursor-pointer"
-                    >
-                      <option value="Alimentos & Bebidas" className="bg-slate-900">Alimentos & Bebidas</option>
-                      <option value="Eletrônicos & Tecnologia" className="bg-slate-900">Eletrônicos & Tecnologia</option>
-                      <option value="Varejo / E-commerce" className="bg-slate-900">Varejo / E-commerce</option>
-                      <option value="Cosméticos & Higiene" className="bg-slate-900">Cosméticos & Higiene</option>
-                      <option value="Construção / Ferramentas" className="bg-slate-900">Construção / Ferramentas</option>
-                      <option value="Distribuidora Geral" className="bg-slate-900">Distribuidora Geral</option>
-                      <option value="Outros" className="bg-slate-900">Outros</option>
-                    </select>
-                  </div>
+                  <CustomSelect
+                    value={segment}
+                    onChange={(val) => setSegment(val)}
+                    options={[
+                      { value: 'Alimentos & Bebidas', label: 'Alimentos & Bebidas' },
+                      { value: 'Eletrônicos & Tecnologia', label: 'Eletrônicos & Tecnologia' },
+                      { value: 'Varejo / E-commerce', label: 'Varejo / E-commerce' },
+                      { value: 'Cosméticos & Higiene', label: 'Cosméticos & Higiene' },
+                      { value: 'Construção / Ferramentas', label: 'Construção / Ferramentas' },
+                      { value: 'Distribuidora Geral', label: 'Distribuidora Geral' },
+                      { value: 'Outros', label: 'Outros' }
+                    ]}
+                    placeholder="Selecione o segmento..."
+                    theme="dark"
+                    className="w-full text-sm"
+                  />
                 </div>
               </div>
 
@@ -496,6 +549,139 @@ export default function OnboardingScreen({ user, onComplete }: OnboardingScreenP
                     </span>
                   </div>
                 )}
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  disabled={loading}
+                  className="px-6 py-4 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-400 font-bold rounded-2xl text-sm flex items-center justify-center gap-2 transition-all cursor-pointer animate-none"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Voltar</span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleNextStep2}
+                  className="flex-grow py-4 px-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all cursor-pointer select-none"
+                >
+                  <span>Avançar para Pix / Banco</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.form
+              key="step3"
+              onSubmit={handleSubmit}
+              initial={{ opacity: 0, x: 15 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -15 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-4"
+            >
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-slate-300">Dados para Recebimento via PIX</p>
+                <p className="text-xs text-slate-500">Configure sua chave PIX para que seus clientes possam pagar gerando QR Codes exatos na entrega.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Tipo de Chave PIX</label>
+                  <CustomSelect
+                    value={pixKeyType}
+                    onChange={(val) => {
+                      setPixKeyType(val as any);
+                      setPixKey('');
+                    }}
+                    options={[
+                      { value: 'cpf', label: 'CPF' },
+                      { value: 'cnpj', label: 'CNPJ' },
+                      { value: 'email', label: 'E-mail' },
+                      { value: 'phone', label: 'Telefone' },
+                      { value: 'random', label: 'Chave Aleatória' }
+                    ]}
+                    placeholder="Selecione o tipo..."
+                    theme="dark"
+                    className="w-full text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Chave PIX</label>
+                  <div className="relative">
+                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="text"
+                      required
+                      placeholder={
+                        pixKeyType === 'cpf' ? '000.000.000-00' :
+                        pixKeyType === 'cnpj' ? '00.000.000/0000-00' :
+                        pixKeyType === 'phone' ? '(11) 99999-9999' :
+                        pixKeyType === 'email' ? 'email@exemplo.com' : 'Sua chave PIX'
+                      }
+                      value={pixKey}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (pixKeyType === 'cpf') val = formatCPF(val);
+                        else if (pixKeyType === 'cnpj') val = formatCNPJ(val);
+                        else if (pixKeyType === 'phone') val = formatPhone(val);
+                        setPixKey(val);
+                      }}
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-2xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Nome do Titular da Conta</label>
+                <div className="relative">
+                  <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nome completo do titular"
+                    value={pixHolderName}
+                    onChange={(e) => setPixHolderName(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-2xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Nome do Banco</label>
+                  <div className="relative">
+                    <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Nubank, Itaú"
+                      value={pixBankName}
+                      onChange={(e) => setPixBankName(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-2xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Cidade da Agência / Banco</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: São Paulo"
+                      value={pixBankCity}
+                      onChange={(e) => setPixBankCity(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-2xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all"
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-500 block">Cidade registrada na conta, exigida pelo Banco Central para PIX.</span>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">

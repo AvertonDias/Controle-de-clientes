@@ -21,10 +21,10 @@ export default function ProductFormModal({
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [description, setDescription] = useState('');
-  const [price, setPrice] = useState<number>(0);
-  const [stock, setStock] = useState<number>(0);
-  const [minStock, setMinStock] = useState<number>(0);
-  const [weight, setWeight] = useState<number>(0);
+  const [price, setPrice] = useState<string>('');
+  const [stock, setStock] = useState<string>('');
+  const [minStock, setMinStock] = useState<string>('');
+  const [weight, setWeight] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -34,18 +34,18 @@ export default function ProductFormModal({
         setName(product.name);
         setSku(product.sku || '');
         setDescription(product.description || '');
-        setPrice(product.price);
-        setStock(product.stock);
-        setMinStock(product.minStock);
-        setWeight(product.weight);
+        setPrice(product.price.toString().replace('.', ','));
+        setStock(product.stock.toString());
+        setMinStock(product.minStock.toString());
+        setWeight(product.weight.toString().replace('.', ','));
       } else {
         setName('');
         setSku('');
         setDescription('');
-        setPrice(0);
-        setStock(0);
-        setMinStock(0);
-        setWeight(0);
+        setPrice('');
+        setStock('');
+        setMinStock('');
+        setWeight('');
       }
       setErrorMessage('');
       setIsSaving(false);
@@ -66,10 +66,10 @@ export default function ProductFormModal({
         name,
         sku,
         description,
-        price: Number(price),
-        stock: Number(stock),
-        minStock: Number(minStock),
-        weight: Number(weight)
+        price: parseFloat(price.replace(',', '.')) || 0,
+        stock: parseInt(stock) || 0,
+        minStock: parseInt(minStock) || 0,
+        weight: parseFloat(weight.replace(',', '.')) || 0
       });
       onClose();
     } catch (e: any) {
@@ -133,7 +133,15 @@ export default function ProductFormModal({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Preço (R$)</label>
-                  <input type="number" step="0.01" value={price || ''} onChange={(e) => setPrice(parseFloat(e.target.value) || 0)} className="w-full px-4 py-3 bg-slate-50 focus:bg-white text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-xl outline-none transition-all duration-200 text-sm" />
+                  <input type="text" inputMode="decimal" value={price} onChange={(e) => {
+                    const rawValue = e.target.value.replace(/\D/g, '');
+                    if (!rawValue) {
+                      setPrice('');
+                      return;
+                    }
+                    const num = parseInt(rawValue, 10) / 100;
+                    setPrice(num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                  }} className="w-full px-4 py-3 bg-slate-50 focus:bg-white text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-xl outline-none transition-all duration-200 text-sm" />
                 </div>
               </div>
 
@@ -145,15 +153,23 @@ export default function ProductFormModal({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Estoque Inicial</label>
-                  <input type="number" disabled={!!product} value={stock} onChange={(e) => setStock(parseInt(e.target.value) || 0)} className="w-full px-4 py-3 bg-slate-50 disabled:bg-slate-100 text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-xl outline-none transition-all duration-200 text-sm" />
+                  <input type="text" inputMode="numeric" disabled={!!product} value={stock} onChange={(e) => setStock(e.target.value.replace(/\D/g, ''))} className="w-full px-4 py-3 bg-slate-50 disabled:bg-slate-100 text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-xl outline-none transition-all duration-200 text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Estoque Mín.</label>
-                  <input type="number" value={minStock} onChange={(e) => setMinStock(parseInt(e.target.value) || 0)} className="w-full px-4 py-3 bg-slate-50 focus:bg-white text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-xl outline-none transition-all duration-200 text-sm" />
+                  <input type="text" inputMode="numeric" value={minStock} onChange={(e) => setMinStock(e.target.value.replace(/\D/g, ''))} className="w-full px-4 py-3 bg-slate-50 focus:bg-white text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-xl outline-none transition-all duration-200 text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Peso (Kg)</label>
-                  <input type="number" step="0.01" value={weight || ''} onChange={(e) => setWeight(parseFloat(e.target.value) || 0)} className="w-full px-4 py-3 bg-slate-50 focus:bg-white text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-xl outline-none transition-all duration-200 text-sm" />
+                  <input type="text" inputMode="decimal" value={weight} onChange={(e) => {
+                    const rawValue = e.target.value.replace(/\D/g, '');
+                    if (!rawValue) {
+                      setWeight('');
+                      return;
+                    }
+                    const num = parseInt(rawValue, 10) / 100;
+                    setWeight(num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                  }} className="w-full px-4 py-3 bg-slate-50 focus:bg-white text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-xl outline-none transition-all duration-200 text-sm" />
                 </div>
               </div>
             </form>

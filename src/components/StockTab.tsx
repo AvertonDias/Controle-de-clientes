@@ -3,6 +3,7 @@ import { Product, StockMovement, MovementType } from '../types';
 import { 
   History, Plus, ArrowUpRight, ArrowDownRight, Search, Calendar, Filter, FileText, Check
 } from 'lucide-react';
+import { CustomSelect } from './CustomSelect';
 
 interface StockTabProps {
   products: Product[];
@@ -23,7 +24,7 @@ export default function StockTab({
   const [isAdding, setIsAdding] = useState(false);
   const [productId, setProductId] = useState('');
   const [type, setType] = useState<MovementType>('entry');
-  const [quantity, setQuantity] = useState<number>(0);
+  const [quantity, setQuantity] = useState<string>('');
   const [observation, setObservation] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -52,7 +53,8 @@ export default function StockTab({
       setErrorMessage('Selecione um produto.');
       return;
     }
-    if (quantity <= 0) {
+    const qty = parseInt(quantity) || 0;
+    if (qty <= 0) {
       setErrorMessage('A quantidade deve ser maior do que zero.');
       return;
     }
@@ -69,20 +71,19 @@ export default function StockTab({
 
     // Check if it's subtraction and if there's enough stock
     const isReduction = ['exit', 'delivery', 'adjustment'].includes(type) && type !== 'adjustment'; // adjust can go both ways, but manual input is positive subtract
-    const isActuallySubtracting = type === 'exit' || (type === 'adjustment' && selectedProduct.stock - quantity < 0);
     
-    if (isReduction && selectedProduct.stock < quantity) {
+    if (isReduction && selectedProduct.stock < qty) {
       setErrorMessage(`Estoque insuficiente. Estoque atual: ${selectedProduct.stock} un`);
       return;
     }
 
     try {
-      await onAddMovement(productId, type, quantity, observation);
+      await onAddMovement(productId, type, qty, observation);
       setSuccessMessage('Movimentação registrada com sucesso!');
       
       // Reset form fields
       setProductId('');
-      setQuantity(0);
+      setQuantity('');
       setObservation('');
       setTimeout(() => {
         setIsAdding(false);
@@ -142,33 +143,33 @@ export default function StockTab({
           </div>
 
           <div>
-            <select
+            <CustomSelect
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              aria-label="Filtrar por tipo de movimentação"
-              className="w-full px-3 py-2 bg-slate-50 text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-lg outline-none text-xs"
-            >
-              <option value="all">Todos os tipos</option>
-              <option value="entry">Entradas</option>
-              <option value="exit">Saídas</option>
-              <option value="return">Devoluções</option>
-              <option value="delivery">Entregas</option>
-              <option value="adjustment">Ajustes</option>
-            </select>
+              onChange={(val) => setSelectedType(val)}
+              options={[
+                { value: 'all', label: 'Todos os tipos' },
+                { value: 'entry', label: 'Entradas' },
+                { value: 'exit', label: 'Saídas' },
+                { value: 'return', label: 'Devoluções' },
+                { value: 'delivery', label: 'Entregas' },
+                { value: 'adjustment', label: 'Ajustes' },
+              ]}
+              placeholder="Filtrar por tipo..."
+              className="w-full text-xs"
+            />
           </div>
 
           <div>
-            <select
+            <CustomSelect
               value={selectedProductFilter}
-              onChange={(e) => setSelectedProductFilter(e.target.value)}
-              aria-label="Filtrar por produto"
-              className="w-full px-3 py-2 bg-slate-50 text-slate-700 border border-slate-200 focus:border-indigo-500 rounded-lg outline-none text-xs"
-            >
-              <option value="all">Todos os produtos</option>
-              {products.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedProductFilter(val)}
+              options={[
+                { value: 'all', label: 'Todos os produtos' },
+                ...products.map(p => ({ value: p.id, label: p.name }))
+              ]}
+              placeholder="Filtrar por produto..."
+              className="w-full text-xs"
+            />
           </div>
         </div>
 
@@ -256,20 +257,16 @@ export default function StockTab({
               <label htmlFor="mov-product" className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                 Produto <span className="text-rose-500">*</span>
               </label>
-              <select
-                id="mov-product"
-                required
+              <CustomSelect
                 value={productId}
-                onChange={(e) => setProductId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 text-slate-700 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl outline-none text-sm transition-all"
-              >
-                <option value="">Selecione um produto...</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} (Disponível: {p.stock} un)
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setProductId(val)}
+                options={products.map(p => ({
+                  value: p.id,
+                  label: `${p.name} (Disponível: ${p.stock} un)`
+                }))}
+                placeholder="Selecione um produto..."
+                className="w-full text-sm"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -277,17 +274,18 @@ export default function StockTab({
                 <label htmlFor="mov-type" className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                   Tipo de Lançamento <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  id="mov-type"
+                <CustomSelect
                   value={type}
-                  onChange={(e) => setType(e.target.value as MovementType)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 text-slate-700 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl outline-none text-sm transition-all"
-                >
-                  <option value="entry">Entrada (Compra/Produção)</option>
-                  <option value="exit">Saída (Consumo/Avaria)</option>
-                  <option value="return">Devolução (Cliente)</option>
-                  <option value="adjustment">Ajuste (Inventário)</option>
-                </select>
+                  onChange={(val) => setType(val as MovementType)}
+                  options={[
+                    { value: 'entry', label: 'Entrada (Compra/Produção)' },
+                    { value: 'exit', label: 'Saída (Consumo/Avaria)' },
+                    { value: 'return', label: 'Devolução (Cliente)' },
+                    { value: 'adjustment', label: 'Ajuste (Inventário)' },
+                  ]}
+                  placeholder="Selecione o tipo..."
+                  className="w-full text-sm"
+                />
               </div>
 
               <div>
@@ -296,13 +294,12 @@ export default function StockTab({
                 </label>
                 <input
                   id="mov-qty"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
                   required
-                  min="1"
                   placeholder="Ex: 10"
-                  value={quantity || ''}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value.replace(/\D/g, ''))}
                   className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white text-slate-700 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl outline-none text-sm transition-all"
                 />
               </div>

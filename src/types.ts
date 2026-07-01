@@ -81,4 +81,10 @@ export interface UserProfile {
   segment: string;
   completedOnboarding: boolean;
   updatedAt: string;
+  // PIX & Bank data
+  pixKey?: string;
+  pixKeyType?: 'cpf' | 'cnpj' | 'email' | 'phone' | 'random';
+  pixHolderName?: string;
+  pixBankName?: string;
+  pixBankCity?: string;
 }
