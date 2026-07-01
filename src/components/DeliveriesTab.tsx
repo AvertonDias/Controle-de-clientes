@@ -374,12 +374,14 @@ export default function DeliveriesTab({
                           },
                           (error) => {
                             console.error(error);
+                            showToast('Para usar sua localização, por favor ative o GPS.', 'error');
                             // Fallback to route's original start if geolocation fails
                             const url = getGoogleMapsUrl(activeRoute);
                             if (url) window.open(url, '_blank');
                           }
                         );
                       } else {
+                        showToast('Geolocalização não suportada.', 'error');
                         // Fallback to route's original start if geolocation not supported
                         const url = getGoogleMapsUrl(activeRoute);
                         if (url) window.open(url, '_blank');
@@ -916,11 +918,13 @@ export default function DeliveriesTab({
                                     },
                                     (error) => {
                                       console.error(error);
+                                      showToast('Para usar sua localização, por favor ative o GPS.', 'error');
                                       const url = getGoogleMapsUrl(route);
                                       if (url) window.open(url, '_blank');
                                     }
                                   );
                                 } else {
+                                  showToast('Geolocalização não suportada.', 'error');
                                   const url = getGoogleMapsUrl(route);
                                   if (url) window.open(url, '_blank');
                                 }
